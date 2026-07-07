@@ -15,6 +15,7 @@
 | 工作流 | 说明 | 难度 | 场景 |
 |--------|------|------|------|
 | [GEO 每日内容生成器](workflows/geo-daily-content.json) | 定时生成 AI 友好内容 + JSON-LD 结构化数据，自动输出 HTML | ⭐⭐ | GEO / 品牌可见度 |
+| [内容生产管线](workflows/content-pipeline.json) | 写3-5条要点 → AI扩写成文章 → 自动改写知乎/小红书版 + SEO + JSON-LD | ⭐⭐ | 多平台内容运营 |
 | AI 可见度监测 *(coming soon)* | 检测品牌在 ChatGPT、Claude、DeepSeek 中的表现 | ⭐⭐⭐ | AI 监测 |
 | 价格监控 *(coming soon)* | 定时爬取目标页面，降价自动通知 | ⭐⭐ | 电商 / 竞品 |
 | 企业微信通知 *(coming soon)* | 多平台消息统一推送至企业微信 | ⭐ | 通知 |
