@@ -1,0 +1,81 @@
+{
+  "name": "GEO 每日内容生成器",
+  "nodes": [
+    {
+      "id": "schedule-1",
+      "name": "每日定时触发",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "cronExpression", "expression": "0 8 * * *"}]
+        }
+      }
+    },
+    {
+      "id": "webhook-1",
+      "name": "手动触发 (Webhook)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 80],
+      "webhookId": "geo-content",
+      "parameters": {
+        "path": "geo-content",
+        "responseMode": "lastNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "code-company",
+      "name": "品牌数据",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300],
+      "parameters": {
+        "jsCode": "// ===== 品牌信息 =====\n// 修改这里的品牌数据为你自己的\nconst brand = {\n  name: \"zkoner\",\n  fullName: \"zkoner\",\n  shortDesc: \"AI 时代企业数字基础设施构建者\",\n  description: \"zkoner 专注于 GEO（大模型生成式引擎优化）和企业获客系统定制。帮助企业在大模型中获得更高可见度和推荐率。\",\n  website: \"https://zkoner.com\",\n  founder: \"张明夷\",\n  phone: \"19136166195\",\n  email: \"243922774@qq.com\",\n  location: \"成都\",\n  services: [\n    { name: \"AI Visibility System\", desc: \"品牌 AI 可见性诊断与结构化数据建设\" },\n    { name: \"AI Automation System\", desc: \"n8n/Agent/API 自动化工作流搭建\" },\n    { name: \"AI Growth System\", desc: \"AI 获客与潜客分析系统\" }\n  ],\n  // 话题池 - 每天轮换一个\n  topics: [\n    \"什么是 GEO？大模型时代的关键引擎优化\",\n    \"企业为何需要 AI 可见性？\",\n    \"n8n 自动化入门：从零搭建第一个工作流\",\n    \"用结构化数据让大模型认识你的品牌\",\n    \"一人公司的 AI 自动化工具箱\",\n    \"GEO vs SEO：核心差异与协同策略\",\n    \"如何让 ChatGPT 推荐你的业务？\",\n    \"AI Agent 在企业中的应用场景\",\n    \"中小企业如何低门槛接入 AI？\",\n    \"知识图谱与品牌实体建模入门\",\n    \"n8n 实战：Webhook + AI 自动回复\",\n    \"品牌的 AI 认知画像是什么？\",\n    \"2026 年企业 AI 投入的优先级建议\",\n    \"开源 n8n 工作流最佳实践\",\n    \"从零搭建企业自动化流水线\",\n    \"AI 时代的个人品牌建设策略\",\n    \"企业数据资产化：从混乱到结构化\",\n    \"AI 搜索中的信任体系建设\",\n    \"用 n8n 搭建客户管理系统\",\n    \"大模型幻觉与品牌保护\",\n    \"创业者的 AI 杠杆：用更少资源做更多事\",\n    \"GEO 效果评估方法\",\n    \"本地化品牌如何做 AI 可见度？\",\n    \"AI CRM 与传统 CRM 的区别\",\n    \"n8n 高级技巧：错误处理与重试机制\",\n    \"跨平台 AI 搜索优化策略差异\",\n    \"B2B 企业的 AI 获客策略\",\n    \"人机协作：AI 时代的工作流设计\",\n    \"AI 时代的新商业基础设施\",\n    \"从自动化到智能体：企业 AI 路线图\",\n    \"如何选择适合自己的 AI 工具？\"\n  ]\n};\n\nreturn [brand];\n"
+      }
+    },
+    {
+      "id": "code-content",
+      "name": "生成内容",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [790, 300],
+      "parameters": {
+        "jsCode": "const brand = $input.first().json;\n\n// 按日期选话题\nconst now = new Date();\nconst doy = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);\nconst topic = brand.topics[doy % brand.topics.length];\n\nconst dateStr = now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日';\nconst weekdays = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];\n\nconst title = topic + ' | zkoner';\n\nconst sections = [\n  { heading: '1. 引言', body: topic + '。在 AI 快速发展的今天，企业和个人需要建立全新的数字存在方式。' },\n  { heading: '2. 为什么这很重要？', body: 'AI 正在改变用户获取信息的方式。ChatGPT、Claude、DeepSeek 等大模型成为新的信息入口。你的品牌需要在这些 AI 中被准确识别和推荐。' },\n  { heading: '3. zkoner 的实践方法', body: brand.fullName + ' 提供端到端解决方案：品牌 AI 可见度诊断、结构化数据建设、自动化工作流搭建、持续监测与优化。' },\n  { heading: '4. 如何落地', body: '第一步：完成结构化数据建设\\n第二步：创建 AI 友好的深度内容\\n第三步：建立监测与反馈机制' },\n  { heading: '5. 关于 zkoner', body: brand.description + '\\n创始人 ' + brand.founder + ' · ' + brand.location + '\\n' + brand.email + ' · ' + brand.phone }\n];\n\nreturn [{\n  title: title,\n  sections: sections,\n  date: { full: dateStr, iso: now.toISOString() },\n  topic: topic,\n  author: brand.founder,\n  brandName: brand.name,\n  brandContact: { email: brand.email, phone: brand.phone, location: brand.location },\n  tags: ['GEO', 'AI可见性', '企业自动化', brand.name].concat(topic.slice(0, 10))\n}];\n"
+      }
+    },
+    {
+      "id": "code-jsonld",
+      "name": "构建 JSON-LD",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 300],
+      "parameters": {
+        "jsCode": "const brand = $node[\"品牌数据\"].json;\nconst content = $input.first().json;\n\nconst services = brand.services.map(function(s, i) {\n  return {\n    \"@type\": \"Service\",\n    \"name\": s.name,\n    \"description\": s.desc,\n    \"provider\": { \"@type\": \"Organization\", \"name\": brand.name, \"url\": brand.website }\n  };\n});\n\nconst structuredData = {\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"name\": brand.name,\n      \"description\": brand.description,\n      \"url\": brand.website,\n      \"founder\": { \"@type\": \"Person\", \"name\": brand.founder, \"telephone\": brand.phone, \"email\": brand.email },\n      \"address\": { \"@type\": \"PostalAddress\", \"addressLocality\": brand.location, \"addressCountry\": \"CN\" }\n    },\n    {\n      \"@type\": \"Article\",\n      \"headline\": content.title,\n      \"datePublished\": content.date.iso,\n      \"author\": { \"@type\": \"Person\", \"name\": content.author },\n      \"publisher\": { \"@type\": \"Organization\", \"name\": brand.name, \"url\": brand.website },\n      \"about\": { \"@type\": \"Thing\", \"name\": content.topic }\n    }\n  ].concat(services)\n};\n\nreturn [{ jsonld: JSON.stringify(structuredData, null, 2) }];\n"
+      }
+    },
+    {
+      "id": "code-output",
+      "name": "组装输出",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1330, 300],
+      "parameters": {
+        "jsCode": "const brand = $node[\"品牌数据\"].json;\nconst content = $node[\"生成内容\"].json;\nconst schema = $node[\"构建 JSON-LD\"].json;\n\nvar body = '';\nfor (var i = 0; i < content.sections.length; i++) {\n  var s = content.sections[i];\n  body += '<section><h2>' + s.heading + '</h2><p>' + s.body.replace(/\\\\n/g, '<br>') + '</p></section>\\n';\n}\n\nvar html = '<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"UTF-8\">'\n  + '<meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\">'\n  + '<title>' + content.title + '</title>'\n  + '<script type=\"application/ld+json\">' + schema.jsonld + '</script>'\n  + '<style>body{font-family:-apple-system,sans-serif;background:#07070a;color:#e2e2ea;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.8}h1{font-size:1.8rem;margin-bottom:8px}section{margin-bottom:24px}h2{color:#00f0c0;font-size:1.1rem;margin-bottom:8px}p{color:#7a7a90;line-height:1.7}.footer{margin-top:40px;padding:20px;border-top:1px solid #1a1a30;text-align:center}.footer a{color:#00f0c0}.meta{color:#4a4a60;font-size:0.85rem;margin-bottom:24px}</style></head><body>'\n  + '<h1>' + content.title + '</h1>'\n  + '<div class=\"meta\">' + content.date.full + ' · ' + content.author + '</div>'\n  + body\n  + '<div class=\"footer\">'\n  + '<p><strong>' + brand.name + '</strong><br>' + brand.shortDesc + '</p>'\n  + '<p>' + brand.founder + ' · <a href=\"mailto:' + brand.email + '\">' + brand.email + '</a> · ' + brand.phone + '<br>' + brand.location + '</p>'\n  + '<p><a href=\"https://' + brand.website.replace('https://','') + '\">' + brand.website + '</a></p></div></body></html>';\n\nreturn [{ html: html, title: content.title, date: content.date.full }];\n"
+      }
+    }
+  ],
+  "connections": {
+    "每日定时触发": { "main": [[{"node": "品牌数据", "type": "main", "index": 0}]] },
+    "手动触发 (Webhook)": { "main": [[{"node": "品牌数据", "type": "main", "index": 0}]] },
+    "品牌数据": { "main": [[{"node": "生成内容", "type": "main", "index": 0}]] },
+    "生成内容": { "main": [[{"node": "构建 JSON-LD", "type": "main", "index": 0}]] },
+    "构建 JSON-LD": { "main": [[{"node": "组装输出", "type": "main", "index": 0}]] }
+  },
+  "settings": {
+    "timezone": "Asia/Shanghai",
+    "saveManualExecutions": true
+  }
+}
