@@ -1,0 +1,149 @@
+{
+  "name": "行业热点 → 文章生产循环",
+  "nodes": [
+    {
+      "id": "schedule-1",
+      "name": "每日定时触发",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [50, 400],
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "cronExpression", "expression": "0 8 * * *"}]
+        }
+      }
+    },
+    {
+      "id": "webhook-1",
+      "name": "手动触发",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [50, 100],
+      "webhookId": "industry-hot-article",
+      "parameters": {
+        "path": "industry-hot-article",
+        "responseMode": "lastNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "rss-hn",
+      "name": "采集行业热点",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [450, 350],
+      "parameters": {
+        "url": "https://hnrss.org/frontpage?count=25"
+      }
+    },
+    {
+      "id": "code-filter",
+      "name": "筛选热点话题",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 350],
+      "parameters": {
+        "jsCode": "// ================================================================\n// 筛选与 zkoner 业务相关的最新热点话题\n// ================================================================\n\n// 品牌关注的关键词权重\nconst KEYWORDS = {\n  'AI': 3, 'artificial intelligence': 3, 'LLM': 3, 'GPT': 3,\n  'large language model': 3, 'ChatGPT': 3, 'Claude': 3, 'DeepSeek': 3,\n  'automation': 2, 'workflow': 2, 'agent': 2, 'n8n': 2,\n  'SEO': 2, 'GEO': 3, 'generative engine': 3,\n  'startup': 1, 'business': 1, 'enterprise': 1,\n  'knowledge graph': 3, 'structured data': 3, 'schema.org': 3,\n  'search': 1, 'ranking': 1, 'visibility': 2,\n  'growth': 1, 'marketing': 1, 'content': 1,\n  '创业': 2, '企业': 2, '数字化': 2, '自动化': 3, '人工智能': 3\n};\n\nconst items = $input.all();\nlet scored = [];\n\nfor (const item of items) {\n  const json = item.json;\n  const title = (json.title || '').toLowerCase();\n  const content = (json.content || json.contentSnippet || json.description || '').toLowerCase();\n  const text = title + ' ' + content;\n\n  let score = 0;\n  let matchedKeywords = [];\n  for (const [kw, weight] of Object.entries(KEYWORDS)) {\n    if (text.includes(kw)) {\n      score += weight;\n      matchedKeywords.push(kw);\n    }\n  }\n\n  scored.push({\n    title: json.title || '(无标题)',\n    link: json.link || '',\n    contentSnippet: (json.contentSnippet || json.description || '').slice(0, 300),\n    score: score,\n    matchedKeywords: matchedKeywords.slice(0, 8),\n    isoDate: json.isoDate || ''\n  });\n}\n\n// 按分数排序 (高分优先)\nscored.sort((a, b) => b.score - a.score);\n\n// 取最高分热点 (得分>0 的最多取2条, 否则取最新1条保底)\nlet top = scored.filter(s => s.score > 0).slice(0, 2);\nif (top.length === 0 && scored.length > 0) {\n  top = [scored[0]];\n  top[0].score = 0;\n  top[0].matchedKeywords = [];\n}\n\nconst primary = top[0] || null;\nconst runnerUp = top[1] || null;\n\nreturn [{\n  totalScanned: items.length,\n  topic: primary,\n  runnerUp: runnerUp\n}];\n"
+      }
+    },
+    {
+      "id": "code-generate",
+      "name": "生成文章",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 350],
+      "parameters": {
+        "jsCode": "// ================================================================\n// 基于真实行业热点生成文章\n// ================================================================\n\nconst input = $input.first().json;\nconst topic = input.topic;\nconst runnerUp = input.runnerUp;\n\n// 品牌数据 — 可修改为你自己的\nconst brand = {\n  name: 'zkoner',\n  shortDesc: 'AI 时代企业数字基础设施构建者',\n  description: 'zkoner 专注于 GEO（大模型生成式引擎优化）、企业 AI 可见性和 n8n 自动化工作流搭建。帮助企业在 AI 时代建立可被大模型准确理解的品牌认知。',\n  website: 'https://zkoner.com',\n  founder: '张明夷',\n  email: '243922774@qq.com',\n  phone: '19136166195',\n  location: '成都',\n  services: [\n    'AI Visibility System — 品牌 AI 可见性诊断与结构化数据建设',\n    'AI Automation System — n8n/Agent/API 自动化工作流搭建',\n    'AI Growth System — AI 获客与潜客分析系统'\n  ]\n};\n\nconst now = new Date();\nconst dateStr = now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日';\n\nvar hotTitle = topic ? topic.title : 'AI 行业最新动态';\nvar hotSnippet = topic ? topic.contentSnippet : '';\nvar hotLink = topic ? topic.link : '';\nvar kwTags = topic && topic.matchedKeywords ? topic.matchedKeywords.slice(0, 5) : [];\n\nif (hotTitle.length > 80) hotTitle = hotTitle.slice(0, 80) + '...';\n\nvar title = '行业观察：' + hotTitle + ' | zkoner';\n\nvar sections = [];\n\nsections.push({\n  heading: '\\uD83D\\uDCF0 本期热点',\n  body: '近日，' + hotTitle + '。' + (hotSnippet ? '\\\\n\\\\n' + hotSnippet : '') + '\\\\n\\\\n'\n        + '\\uD83D\\uDCCD 来源：' + (hotLink || '行业资讯'),\n  type: 'news'\n});\n\nsections.push({\n  heading: '\\uD83D\\uDD0D 为什么这值得关注？',\n  body: '这一趋势正在影响企业数字基础设施的构建方式。对于中小企业、创业者和一人公司来说，理解并跟上这些变化，意味着能够在 AI 时代保持竞争力。'\n        + (kwTags.length > 0 ? '\\\\n\\\\n相关关键词：' + kwTags.join(' / ') : ''),\n  type: 'analysis'\n});\n\nsections.push({\n  heading: '\\uD83D\\uDCA1 zkoner 的视角',\n  body: '作为 AI 时代企业数字基础设施构建者，zkoner 持续跟踪行业趋势，将其融入核心系统：\\\\n'\n        + brand.services.map(function(s) { return '• ' + s; }).join('\\\\n') + '\\\\n\\\\n'\n        + '我们认为，每个企业都应该建立属于自己的 AI 可理解身份，'\n        + '而不是被动等待技术浪潮的冲击。',\n  type: 'perspective'\n});\n\nsections.push({\n  heading: '\\u2705 如何落地？',\n  body: '第一步：评估你的品牌在 AI 中的认知现状\\\\n'\n        + '第二步：构建结构化的品牌知识体系\\\\n'\n        + '第三步：用自动化工作流持续运营内容\\\\n'\n        + '第四步：建立监测循环，持续优化 AI 可见度',\n  type: 'action'\n});\n\nreturn [{\n  title: title,\n  sections: sections,\n  hotTopic: hotTitle,\n  hotLink: hotLink,\n  date: { full: dateStr, iso: now.toISOString() },\n  author: brand.founder,\n  brandName: brand.name,\n  brandContact: brand.email + ' · ' + brand.phone,\n  tags: ['行业热点', 'AI', '企业自动化', 'GEO'].concat(brand.name),\n  totalScanned: input.totalScanned\n}];\n"
+      }
+    },
+    {
+      "id": "code-jsonld",
+      "name": "构建 JSON-LD",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 250],
+      "parameters": {
+        "jsCode": "const content = $input.first().json;\n\nconst articleSchema = {\n  '@context': 'https://schema.org',\n  '@type': 'Article',\n  '@id': 'https://zkoner.com/blog/#' + content.date.iso.slice(0, 10),\n  headline: content.title,\n  datePublished: content.date.iso,\n  dateModified: content.date.iso,\n  author: { '@type': 'Person', 'name': content.author },\n  publisher: {\n    '@type': 'Organization',\n    'name': content.brandName,\n    'url': 'https://zkoner.com'\n  },\n  about: { '@type': 'Thing', 'name': content.hotTopic },\n  keywords: content.tags.join(', ')\n};\n\nreturn [{\n  jsonldArticle: JSON.stringify(articleSchema, null, 2)\n}];\n"
+      }
+    },
+    {
+      "id": "code-output",
+      "name": "组装 HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 450],
+      "parameters": {
+        "jsCode": "const content = $node['生成文章'].json;\nconst schema = $input.first().json;\n\nvar body = '';\nfor (var i = 0; i < content.sections.length; i++) {\n  var s = content.sections[i];\n  body += '<section class=\"section-' + s.type + '\">';\n  body += '<h2>' + s.heading + '</h2>';\n  body += '<p>' + s.body.replace(/\\\\n\\\\n/g, '</p><p>').replace(/\\\\n/g, '<br>') + '</p>';\n  body += '</section>\\\\n';\n}\n\nvar sourceHtml = content.hotLink\n  ? '<p style=\"font-size:0.75rem;color:#4a4a60;\">\\uD83D\\uDCE1 话题来源：<a href=\"' + content.hotLink + '\" target=\"_blank\" rel=\"noopener\" style=\"color:#00a080;\">' + content.hotLink.replace('https://', '').slice(0, 50) + '</a></p>'\n  : '';\n\nvar tagsHtml = content.tags.map(function(t) {\n  return '<span style=\"font-family:monospace;font-size:0.62rem;padding:3px 8px;border-radius:4px;background:rgba(124,92,252,0.08);color:#7c5cfc;border:1px solid rgba(124,92,252,0.12);\">' + t + '</span>';\n}).join('');\n\nvar html = '<!DOCTYPE html>\\\\n<html lang=\"zh-CN\">\\\\n<head>\\\\n'\n  + '<meta charset=\"UTF-8\">\\\\n'\n  + '<meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\">\\\\n'\n  + '<title>' + content.title + '</title>\\\\n'\n  + '<meta name=\"description\" content=\"' + (content.hotTopic || '').slice(0, 120) + '\">\\\\n'\n  + '<script type=\"application/ld+json\">' + schema.jsonldArticle + '</script>\\\\n'\n  + '<link rel=\"canonical\" href=\"https://zkoner.com/blog/\">\\\\n'\n  + '<style>'\n  + 'body{font-family:-apple-system,BlinkMacSystemFont,\\\"SF Pro Display\\\",\\\"Segoe UI\\\",Roboto,\\\"Noto Sans SC\\\",sans-serif;background:#07070a;color:#e2e2ea;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.8;}'\n  + 'h1{font-size:1.6rem;font-weight:650;letter-spacing:-0.5px;margin-bottom:8px;}'\n  + '.meta{color:#4a4a60;font-size:0.82rem;margin-bottom:32px;}'\n  + 'section{margin-bottom:28px;padding:20px;border:1px solid #1a1a30;border-radius:8px;background:#0c0c14;}'\n  + '.section-news{border-left:3px solid #7c5cfc;}'\n  + '.section-analysis{border-left:3px solid #00f0c0;}'\n  + '.section-perspective{border-left:3px solid #ffb74d;}'\n  + '.section-action{border-left:3px solid #ff5f56;}'\n  + 'h2{font-size:1rem;font-weight:600;color:#00f0c0;margin-bottom:8px;}'\n  + 'p{color:#7a7a90;font-size:0.9rem;line-height:1.8;margin-bottom:8px;}'\n  + 'a{color:#00f0c0;}'\n  + '.footer{margin-top:40px;padding:24px;border-top:1px solid #1a1a30;text-align:center;}'\n  + '.tags{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 16px;}'\n  + '</style>\\\\n</head>\\\\n<body>\\\\n\\\\n'\n  + '<h1>' + content.title + '</h1>\\\\n'\n  + '<div class=\"meta\">' + content.date.full + ' \\u00B7 ' + content.author + '</div>\\\\n'\n  + '<div class=\"tags\">' + tagsHtml + '</div>\\\\n'\n  + sourceHtml + '\\\\n'\n  + body + '\\\\n'\n  + '<div class=\"footer\">\\\\n'\n  + '<p><strong style=\"color:#00f0c0;\">zkoner</strong><br>AI 时代企业数字基础设施构建者</p>\\\\n'\n  + '<p style=\"margin-top:8px;font-size:0.8rem;\">' + content.author + ' \\u00B7 <a href=\"mailto:243922774@qq.com\">243922774@qq.com</a> \\u00B7 19136166195</p>\\\\n'\n  + '<p style=\"font-size:0.75rem;color:#4a4a60;\">\\u6210\\u90FD \\u00B7 \\u4E2D\\u56FD | <a href=\"https://zkoner.com\">zkoner.com</a></p>\\\\n'\n  + '</div>\\\\n\\\\n'\n  + '</body>\\\\n</html>';\n\nreturn [{\n  html: html,\n  title: content.title,\n  date: content.date.full,\n  tags: content.tags.join(', '),\n  hotTopic: content.hotTopic,\n  hotLink: content.hotLink,\n  totalScanned: content.totalScanned\n}];\n"
+      }
+    },
+    {
+      "id": "code-github-prep",
+      "name": "准备 GitHub 推送",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2050, 450],
+      "parameters": {
+        "jsCode": "// 组装 GitHub API 需要的 payload\nconst input = $input.first().json;\nconst html = input.html;\nconst title = input.title;\nconst date = input.date;\n\n// 生成文件名: 2026-07-08-ai-industry-trend.html\nvar slug = title\n  .replace(/[\\\\s\\\\/-]+/g, '-')\n  .replace(/[^a-zA-Z0-9\\u4e00-\\u9fff\\u3040-\\u30ff\\uac00-\\ud7af-]/g, '')\n  .replace(/-+/g, '-')\n  .slice(0, 60);\nvar filename = date.replace(/[\\\\s\\u00B7]/g, '') + '-' + slug + '.html';\nfilename = filename.replace(/--+/g, '-').replace(/^-|-$/g, '');\n\n// GitHub API 要求 base64\nvar base64Content = Buffer.from(html).toString('base64');\n\n// 检查 sitemap.xml 是否需要更新 (每月1日执行)\nvar now = new Date();\nvar isFirstOfMonth = now.getDate() === 1;\n\nreturn [{\n  // GitHub API payload\n  githubPayload: {\n    message: 'n8n: ' + title.slice(0, 80),\n    content: base64Content,\n    branch: 'main'\n  },\n  // API URL\n  apiUrl: 'https://api.github.com/repos/zhangxiaomingv/zkoner.com/contents/blog/' + filename,\n  // 元数据\n  filename: filename,\n  articleTitle: title,\n  date: date,\n  hotTopic: input.hotTopic,\n  hotLink: input.hotLink\n}];\n"
+      }
+    },
+    {
+      "id": "http-github",
+      "name": "推送到 GitHub",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2450, 450],
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.apiUrl }}",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "message", "value": "={{ $json.githubPayload.message }}" },
+            { "name": "content", "value": "={{ $json.githubPayload.content }}" },
+            { "name": "branch", "value": "={{ $json.githubPayload.branch }}" }
+          ]
+        },
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer YOUR_GITHUB_TOKEN" },
+            { "name": "Accept", "value": "application/vnd.github.v3+json" }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "每日定时触发": {
+      "main": [[{ "node": "采集行业热点", "type": "main", "index": 0 }]]
+    },
+    "手动触发": {
+      "main": [[{ "node": "采集行业热点", "type": "main", "index": 0 }]]
+    },
+    "采集行业热点": {
+      "main": [[{ "node": "筛选热点话题", "type": "main", "index": 0 }]]
+    },
+    "筛选热点话题": {
+      "main": [[{ "node": "生成文章", "type": "main", "index": 0 }]]
+    },
+    "生成文章": {
+      "main": [[{ "node": "构建 JSON-LD", "type": "main", "index": 0 }, { "node": "组装 HTML", "type": "main", "index": 0 }]]
+    },
+    "构建 JSON-LD": {
+      "main": [[{ "node": "组装 HTML", "type": "main", "index": 0 }]]
+    },
+    "组装 HTML": {
+      "main": [[{ "node": "准备 GitHub 推送", "type": "main", "index": 0 }]]
+    },
+    "准备 GitHub 推送": {
+      "main": [[{ "node": "推送到 GitHub", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "timezone": "Asia/Shanghai",
+    "saveManualExecutions": true
+  }
+}
